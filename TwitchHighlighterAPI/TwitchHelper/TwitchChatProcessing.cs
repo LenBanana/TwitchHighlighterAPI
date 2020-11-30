@@ -10,7 +10,43 @@ namespace TwitchHighlighterAPI.Twitch
 {
     public class TwitchChatProcessing
     {
-        public static async Task<List<Highlight>> GetChatHighlights(string twitchID, double timeframe)
+        public static Dictionary<string, bool> QueuedRequests { get; set; } = new Dictionary<string, bool>();
+
+        public static Dictionary<string, IEnumerable<Highlight>> RequestedHighlights { get; set; } = new Dictionary<string, IEnumerable<Highlight>>();
+
+        public static HighlightQueueResult QueueRequest(string twitchID, double timeframe)
+        {
+            HighlightQueueResult result = new HighlightQueueResult();
+            if (!QueuedRequests.ContainsKey(twitchID))
+            {
+                QueuedRequests.Add(twitchID, false);
+                GetChatHighlights(twitchID, timeframe);
+                result.Message = "ID is now being queued, please wait until the processing is done, and request again.";
+            }
+            else
+            {
+                if (!QueuedRequests[twitchID])
+                {
+                    result.Message = "This ID was already requested and is currently being processed";
+                }
+                else
+                {
+                    result.Highlights = RequestedHighlights[twitchID];
+                }
+            }
+            CheckQueue();
+            return result;
+        }
+
+        public static void CheckQueue()
+        {
+            if (RequestedHighlights.Count > 1000)
+            {
+                RequestedHighlights.Remove(RequestedHighlights.First().Key);
+            }
+        }
+
+        public static async void GetChatHighlights(string twitchID, double timeframe)
         {
             string url = "https://api.twitch.tv/v5/videos/" + twitchID + "/comments";
             List<TwitchChat> chats = new List<TwitchChat>();
@@ -29,13 +65,13 @@ namespace TwitchHighlighterAPI.Twitch
                     if (firstRoll)
                         firstRoll = false;
                 }
+                FindHighlights(chats, timeframe, twitchID);
             }
-            return await FindHighlights(chats, timeframe, twitchID);
         }
 
-        static async Task<List<Highlight>> FindHighlights(List<TwitchChat> chats, double timeframe, string twitchID)
+        static async void FindHighlights(List<TwitchChat> chats, double timeframe, string twitchID)
         {
-            return await Task<List<Highlight>>.Run(() =>
+            await Task.Run(() =>
             {
                 DateTime minDate = chats.First().Comments.First().CreatedAt.UtcDateTime;
                 DateTime startDate = chats.First().Comments.First().CreatedAt.UtcDateTime;
@@ -62,13 +98,15 @@ namespace TwitchHighlighterAPI.Twitch
 
                     startDate = startDate.AddSeconds(timeframe);
                 }
-                if (result.Count > 0)
+                if (result.Count() > 0)
                 {
                     int maxCount = result.Max(x => x.MessageCount);
                     foreach (var highlight in result)
                         highlight.Fitness = Math.Round((double)highlight.MessageCount / (double)maxCount * 100.0, 2);
                 }
-                return result.OrderByDescending(x => x.MessageCount).ToList();
+                var orderedResult = result.OrderByDescending(x => x.MessageCount);
+                RequestedHighlights.Add(twitchID, orderedResult);
+                QueuedRequests[twitchID] = true;
             });            
         }
     }
