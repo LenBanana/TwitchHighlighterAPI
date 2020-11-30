@@ -12,7 +12,7 @@ namespace TwitchHighlighterAPI.Twitch
     {
         public static Dictionary<string, bool> QueuedRequests { get; set; } = new Dictionary<string, bool>();
 
-        public static Dictionary<string, IEnumerable<Highlight>> RequestedHighlights { get; set; } = new Dictionary<string, IEnumerable<Highlight>>();
+        public static Dictionary<string, List<TwitchChat>> RequestedHighlights { get; set; } = new Dictionary<string, List<TwitchChat>>();
 
         public static HighlightQueueResult QueueRequest(string twitchID, double timeframe)
         {
@@ -31,7 +31,7 @@ namespace TwitchHighlighterAPI.Twitch
                 }
                 else
                 {
-                    result.Highlights = RequestedHighlights[twitchID];
+                    result.Highlights = FindHighlights(RequestedHighlights[twitchID], timeframe, twitchID);
                 }
             }
             CheckQueue();
@@ -65,49 +65,46 @@ namespace TwitchHighlighterAPI.Twitch
                     if (firstRoll)
                         firstRoll = false;
                 }
-                FindHighlights(chats, timeframe, twitchID);
+                RequestedHighlights.Add(twitchID, chats);
+                QueuedRequests[twitchID] = true;
             }
         }
 
-        static async void FindHighlights(List<TwitchChat> chats, double timeframe, string twitchID)
+        static List<Highlight> FindHighlights(List<TwitchChat> chats, double timeframe, string twitchID)
         {
-            await Task.Run(() =>
+            DateTime minDate = chats.First().Comments.First().CreatedAt.UtcDateTime;
+            DateTime startDate = chats.First().Comments.First().CreatedAt.UtcDateTime;
+            DateTime maxDate = chats.Last().Comments.Last().CreatedAt.UtcDateTime;
+            var AllComments = chats.Select(x => x.Comments).SelectMany(x => x).ToList();
+            List<Highlight> result = new List<Highlight>();
+            while (minDate < maxDate)
             {
-                DateTime minDate = chats.First().Comments.First().CreatedAt.UtcDateTime;
-                DateTime startDate = chats.First().Comments.First().CreatedAt.UtcDateTime;
-                DateTime maxDate = chats.Last().Comments.Last().CreatedAt.UtcDateTime;
-                var AllComments = chats.Select(x => x.Comments).SelectMany(x => x).ToList();
-                List<Highlight> result = new List<Highlight>();
-                while (minDate < maxDate)
-                {
-                    minDate = minDate.AddSeconds(timeframe);
-                    var comments = AllComments.Where(y => y.CreatedAt.UtcDateTime <= minDate && y.CreatedAt.UtcDateTime >= startDate);
-                    if (comments.Count() == 0)
-                        continue;
-                    var lastCreated = comments.Max(x => x.CreatedAt);
-                    var firstCreated = comments.Min(x => x.CreatedAt);
-                    Highlight highlight = new Highlight();
-                    highlight.VOD_ID = twitchID;
-                    highlight.StartTime = firstCreated.UtcDateTime;
-                    highlight.EndTime = lastCreated.UtcDateTime;
-                    highlight.MessageCount = comments.Count();
-                    highlight.TimeFrame = new TimeSpan(lastCreated.Ticks - firstCreated.Ticks).TotalSeconds;
-                    highlight.TimeOffset = TimeSpan.FromSeconds(comments.Min(x => x.ContentOffsetSeconds)).ToString("hh\\hmm\\mss\\s");
-                    comments.ToList().ForEach(x => highlight.HighlightMessages.Add(new HighlightMessage() { Message = x.Message.Body, Username = x.Commenter.DisplayName, WriteTime = x.CreatedAt.UtcDateTime }));
-                    result.Add(highlight);
+                minDate = minDate.AddSeconds(timeframe);
+                var comments = AllComments.Where(y => y.CreatedAt.UtcDateTime <= minDate && y.CreatedAt.UtcDateTime >= startDate);
+                if (comments.Count() == 0)
+                    continue;
+                var lastCreated = comments.Max(x => x.CreatedAt);
+                var firstCreated = comments.Min(x => x.CreatedAt);
+                Highlight highlight = new Highlight();
+                highlight.VOD_ID = twitchID;
+                highlight.StartTime = firstCreated.UtcDateTime;
+                highlight.EndTime = lastCreated.UtcDateTime;
+                highlight.MessageCount = comments.Count();
+                highlight.TimeFrame = new TimeSpan(lastCreated.Ticks - firstCreated.Ticks).TotalSeconds;
+                highlight.TimeOffset = TimeSpan.FromSeconds(comments.Min(x => x.ContentOffsetSeconds)).ToString("hh\\hmm\\mss\\s");
+                comments.ToList().ForEach(x => highlight.HighlightMessages.Add(new HighlightMessage() { Message = x.Message.Body, Username = x.Commenter.DisplayName, WriteTime = x.CreatedAt.UtcDateTime }));
+                result.Add(highlight);
 
-                    startDate = startDate.AddSeconds(timeframe);
-                }
-                if (result.Count() > 0)
-                {
-                    int maxCount = result.Max(x => x.MessageCount);
-                    foreach (var highlight in result)
-                        highlight.Fitness = Math.Round((double)highlight.MessageCount / (double)maxCount * 100.0, 2);
-                }
-                var orderedResult = result.OrderByDescending(x => x.MessageCount);
-                RequestedHighlights.Add(twitchID, orderedResult);
-                QueuedRequests[twitchID] = true;
-            });            
+                startDate = startDate.AddSeconds(timeframe);
+            }
+            if (result.Count() > 0)
+            {
+                int maxCount = result.Max(x => x.MessageCount);
+                foreach (var highlight in result)
+                    highlight.Fitness = Math.Round((double)highlight.MessageCount / (double)maxCount * 100.0, 2);
+            }
+            var orderedResult = result.OrderByDescending(x => x.MessageCount).ToList();
+            return orderedResult;
         }
     }
 }
