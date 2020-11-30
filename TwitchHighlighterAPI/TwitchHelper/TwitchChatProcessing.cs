@@ -82,7 +82,10 @@ namespace TwitchHighlighterAPI.Twitch
                 minDate = minDate.AddSeconds(timeframe);
                 var comments = AllComments.Where(y => y.CreatedAt.UtcDateTime <= minDate && y.CreatedAt.UtcDateTime >= startDate);
                 if (comments.Count() == 0)
+                {
+                    startDate = startDate.AddSeconds(timeframe);
                     continue;
+                }
                 var lastCreated = comments.Max(x => x.CreatedAt);
                 var firstCreated = comments.Min(x => x.CreatedAt);
                 Highlight highlight = new Highlight();
