@@ -25,5 +25,11 @@ namespace TwitchHighlighterAPI.Controllers
         {
             return TwitchChatProcessing.QueuedRequests.Where(x => !x.Value).Select(x => x.Key).ToList();
         }
+
+        [HttpGet]
+        public List<string> GetAvailableRequests()
+        {
+            return TwitchChatProcessing.QueuedRequests.Where(x => x.Value).Select(x => x.Key).ToList();
+        }
     }
 }
