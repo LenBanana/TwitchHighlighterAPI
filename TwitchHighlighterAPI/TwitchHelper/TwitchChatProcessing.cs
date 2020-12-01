@@ -13,6 +13,8 @@ namespace TwitchHighlighterAPI.Twitch
         public static Dictionary<string, bool> QueuedRequests { get; set; } = new Dictionary<string, bool>();
 
         public static Dictionary<string, List<TwitchChat>> RequestedHighlights { get; set; } = new Dictionary<string, List<TwitchChat>>();
+        static double EmoteWeight = 0.25;
+        static double SecondReduce = 30;
 
         public static HighlightQueueResult QueueRequest(string twitchID, double timeframe)
         {
@@ -99,7 +101,9 @@ namespace TwitchHighlighterAPI.Twitch
                 highlight.EndTime = lastCreated.UtcDateTime;
                 highlight.MessageCount = comments.Count();
                 highlight.TimeFrame = new TimeSpan(lastCreated.Ticks - firstCreated.Ticks).TotalSeconds;
-                highlight.TimeOffset = TimeSpan.FromSeconds(comments.Min(x => x.ContentOffsetSeconds)).ToString("hh\\hmm\\mss\\s");
+                var ts = TimeSpan.FromSeconds(comments.Min(x => x.ContentOffsetSeconds));
+                var tsReduced = ts.TotalSeconds > SecondReduce ? TimeSpan.FromSeconds(ts.TotalSeconds - SecondReduce) : TimeSpan.FromSeconds(0);
+                highlight.TimeOffset = tsReduced.ToString("hh\\hmm\\mss\\s");
                 comments.ToList().ForEach(x => highlight.HighlightMessages.Add(new HighlightMessage() { Message = x.Message.Body, Username = x.Commenter.DisplayName, WriteTime = x.CreatedAt.UtcDateTime, EmoteCount = x.Message.Emoticons != null ? x.Message.Emoticons.Count : 0 }));
                 result.Add(highlight);
 
@@ -107,7 +111,6 @@ namespace TwitchHighlighterAPI.Twitch
             }
             if (result.Count() > 0)
             {
-                double EmoteWeight = 0.25;
                 double maxCount = result.Max(x => (x.MessageCount + (x.HighlightMessages.Select(y => y.EmoteCount).Sum() * EmoteWeight)));
                 foreach (var highlight in result)
                     highlight.Fitness = Math.Round((double)(highlight.MessageCount + (highlight.EmoteCount * EmoteWeight)) / (double)maxCount * 100.0, 2);
