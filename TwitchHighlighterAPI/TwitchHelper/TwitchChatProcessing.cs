@@ -14,14 +14,17 @@ namespace TwitchHighlighterAPI.Twitch
 
         public static Dictionary<string, List<TwitchChat>> RequestedHighlights { get; set; } = new Dictionary<string, List<TwitchChat>>();
         static double EmoteWeight = 0.75;
+        static double PartnerWeight = 0.25;
         static double SecondReduce = 30;
+        static int MaxQueued = 125;
+        static int MaxRemembered = 1000;
 
         public static HighlightQueueResult QueueRequest(string twitchID, double timeframe)
         {
             HighlightQueueResult result = new HighlightQueueResult();
             if (!QueuedRequests.ContainsKey(twitchID))
             {
-                if (QueuedRequests.Count >= 125)
+                if (QueuedRequests.Count >= MaxQueued)
                 {
                     result.Message = "There are currently too many requests being processed, please wait until one finishes and request again";
                     return result;
@@ -47,7 +50,7 @@ namespace TwitchHighlighterAPI.Twitch
 
         public static void CheckQueue()
         {
-            if (RequestedHighlights.Count > 1000)
+            if (RequestedHighlights.Count > MaxRemembered)
             {
                 RequestedHighlights.Remove(RequestedHighlights.First().Key);
             }
@@ -103,7 +106,20 @@ namespace TwitchHighlighterAPI.Twitch
                 var ts = TimeSpan.FromSeconds(comments.Min(x => x.ContentOffsetSeconds));
                 var tsReduced = ts.TotalSeconds > SecondReduce ? TimeSpan.FromSeconds(ts.TotalSeconds - SecondReduce) : TimeSpan.FromSeconds(0);
                 highlight.TimeOffset = tsReduced.ToString("hh\\hmm\\mss\\s");
-                comments.ToList().ForEach(x => highlight.HighlightMessages.Add(new HighlightMessage() { Message = x.Message.Body, Username = x.Commenter.DisplayName, WriteTime = x.CreatedAt.UtcDateTime, EmoteCount = x.Message.Emoticons != null ? x.Message.Emoticons.Count : 0 }));
+                comments.ToList().ForEach(x =>
+                {
+                    if (x.Message.UserBadges != null && x.Message.UserBadges.Any(x => x.Id == "partner"))
+                    {
+                        System.Diagnostics.Debug.WriteLine(x.Commenter.DisplayName);
+                    }
+                    highlight.HighlightMessages.Add(new HighlightMessage()
+                    {
+                        Message = x.Message.Body,
+                        Username = x.Commenter.DisplayName,
+                        WriteTime = x.CreatedAt.UtcDateTime,
+                        EmoteCount = x.Message.Emoticons != null ? x.Message.Emoticons.Count : 0
+                    });
+                });
                 result.Add(highlight);
 
                 startDate = startDate.AddSeconds(timeframe);
@@ -112,7 +128,7 @@ namespace TwitchHighlighterAPI.Twitch
             {
                 double maxCount = result.Max(x => (x.MessageCount + (x.HighlightMessages.Select(y => y.EmoteCount).Sum() * EmoteWeight)));
                 foreach (var highlight in result)
-                    highlight.Fitness = Math.Round((double)(highlight.MessageCount + (highlight.EmoteCount * EmoteWeight)) / (double)maxCount * 100.0, 2);
+                    highlight.Fitness = Math.Round((highlight.MessageCount + (highlight.EmoteCount * EmoteWeight) + (highlight.PartnerCount * PartnerWeight)) / maxCount * 100.0, 2);
             }
             var orderedResult = result.OrderByDescending(x => x.Fitness).ToList();
             return orderedResult;
