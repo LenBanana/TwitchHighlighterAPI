@@ -19,6 +19,11 @@ namespace TwitchHighlighterAPI.Twitch
             HighlightQueueResult result = new HighlightQueueResult();
             if (!QueuedRequests.ContainsKey(twitchID))
             {
+                if (QueuedRequests.Count >= 125)
+                {
+                    result.Message = "There are currently too many requests being processed, please wait until one finishes and request again";
+                    return result;
+                }
                 QueuedRequests.Add(twitchID, false);
                 GetChatHighlights(twitchID, timeframe);
                 result.Message = "ID is now being queued, please wait until the processing is done, and request again.";
