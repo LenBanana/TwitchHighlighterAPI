@@ -15,8 +15,8 @@ namespace TwitchHighlighterAPI.Twitch
 
         public static Dictionary<string, List<TwitchChat>> RequestedHighlights { get; set; } = new Dictionary<string, List<TwitchChat>>();
         static double SecondReduce = 15;
-        static int MaxQueued = 125;
-        static int MaxRemembered = 1000;
+        static int MaxQueued = 10;
+        static int MaxRemembered = 100;
 
         public static HighlightQueueResult QueueRequest(string twitchID, double timeframe)
         {
