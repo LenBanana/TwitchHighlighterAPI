@@ -15,7 +15,7 @@ namespace TwitchHighlighterAPI.Twitch
         public static Dictionary<string, List<TwitchChat>> RequestedHighlights { get; set; } = new Dictionary<string, List<TwitchChat>>();
         static double EmoteWeight = 0.75;
         static double PartnerWeight = 0.25;
-        static double SecondReduce = 30;
+        static double SecondReduce = 15;
         static int MaxQueued = 125;
         static int MaxRemembered = 1000;
 
