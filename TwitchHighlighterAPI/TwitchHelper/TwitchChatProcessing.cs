@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using TwitchHighlighterAPI.Extensions;
 using TwitchHighlighterAPI.Models;
 
 namespace TwitchHighlighterAPI.Twitch
@@ -13,8 +14,6 @@ namespace TwitchHighlighterAPI.Twitch
         public static Dictionary<string, bool> QueuedRequests { get; set; } = new Dictionary<string, bool>();
 
         public static Dictionary<string, List<TwitchChat>> RequestedHighlights { get; set; } = new Dictionary<string, List<TwitchChat>>();
-        static double EmoteWeight = 0.75;
-        static double PartnerWeight = 0.25;
         static double SecondReduce = 15;
         static int MaxQueued = 125;
         static int MaxRemembered = 1000;
@@ -126,9 +125,9 @@ namespace TwitchHighlighterAPI.Twitch
             }
             if (result.Count() > 0)
             {
-                double maxCount = result.Max(x => (x.MessageCount + (x.HighlightMessages.Select(y => y.EmoteCount).Sum() * EmoteWeight)));
+                double maxCount = result.Max(x => x.TotalMessageCount());
                 foreach (var highlight in result)
-                    highlight.Fitness = Math.Round((highlight.MessageCount + (highlight.EmoteCount * EmoteWeight) + (highlight.PartnerCount * PartnerWeight)) / maxCount * 100.0, 2);
+                    highlight.Fitness = Math.Round(highlight.TotalMessageCount() / maxCount * 100.0, 2);
             }
             var orderedResult = result.OrderByDescending(x => x.Fitness).ToList();
             return orderedResult;
