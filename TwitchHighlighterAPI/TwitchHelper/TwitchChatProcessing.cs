@@ -112,7 +112,7 @@ namespace TwitchHighlighterAPI.Twitch
                 foreach (var highlight in result)
                     highlight.Fitness = Math.Round((double)(highlight.MessageCount + (highlight.EmoteCount * EmoteWeight)) / (double)maxCount * 100.0, 2);
             }
-            var orderedResult = result.OrderByDescending(x => x.MessageCount).ToList();
+            var orderedResult = result.OrderByDescending(x => x.Fitness).ToList();
             return orderedResult;
         }
     }
