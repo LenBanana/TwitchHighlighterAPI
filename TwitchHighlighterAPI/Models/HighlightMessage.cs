@@ -9,6 +9,7 @@ namespace TwitchHighlighterAPI.Models
     public class HighlightMessage
     {
         public DateTime WriteTime { get; set; }
+        public int EmoteCount { get; set; }
         public string Username { get; set; }
         public string Message { get; set; }
     }

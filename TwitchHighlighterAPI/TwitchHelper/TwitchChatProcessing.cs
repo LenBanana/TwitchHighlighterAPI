@@ -100,16 +100,17 @@ namespace TwitchHighlighterAPI.Twitch
                 highlight.MessageCount = comments.Count();
                 highlight.TimeFrame = new TimeSpan(lastCreated.Ticks - firstCreated.Ticks).TotalSeconds;
                 highlight.TimeOffset = TimeSpan.FromSeconds(comments.Min(x => x.ContentOffsetSeconds)).ToString("hh\\hmm\\mss\\s");
-                comments.ToList().ForEach(x => highlight.HighlightMessages.Add(new HighlightMessage() { Message = x.Message.Body, Username = x.Commenter.DisplayName, WriteTime = x.CreatedAt.UtcDateTime }));
+                comments.ToList().ForEach(x => highlight.HighlightMessages.Add(new HighlightMessage() { Message = x.Message.Body, Username = x.Commenter.DisplayName, WriteTime = x.CreatedAt.UtcDateTime, EmoteCount = x.Message.Emoticons != null ? x.Message.Emoticons.Count : 0 }));
                 result.Add(highlight);
 
                 startDate = startDate.AddSeconds(timeframe);
             }
             if (result.Count() > 0)
             {
-                int maxCount = result.Max(x => x.MessageCount);
+                double EmoteWeight = 0.25;
+                double maxCount = result.Max(x => (x.MessageCount + (x.HighlightMessages.Select(y => y.EmoteCount).Sum() * EmoteWeight)));
                 foreach (var highlight in result)
-                    highlight.Fitness = Math.Round((double)highlight.MessageCount / (double)maxCount * 100.0, 2);
+                    highlight.Fitness = Math.Round((double)(highlight.MessageCount + (highlight.HighlightMessages.Select(x => x.EmoteCount).Sum() * EmoteWeight)) / (double)maxCount * 100.0, 2);
             }
             var orderedResult = result.OrderByDescending(x => x.MessageCount).ToList();
             return orderedResult;
