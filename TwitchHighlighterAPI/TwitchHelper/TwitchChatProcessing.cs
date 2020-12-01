@@ -13,7 +13,7 @@ namespace TwitchHighlighterAPI.Twitch
         public static Dictionary<string, bool> QueuedRequests { get; set; } = new Dictionary<string, bool>();
 
         public static Dictionary<string, List<TwitchChat>> RequestedHighlights { get; set; } = new Dictionary<string, List<TwitchChat>>();
-        static double EmoteWeight = 0.25;
+        static double EmoteWeight = 0.75;
         static double SecondReduce = 30;
 
         public static HighlightQueueResult QueueRequest(string twitchID, double timeframe)
@@ -99,7 +99,6 @@ namespace TwitchHighlighterAPI.Twitch
                 highlight.VOD_ID = twitchID;
                 highlight.StartTime = firstCreated.UtcDateTime;
                 highlight.EndTime = lastCreated.UtcDateTime;
-                highlight.MessageCount = comments.Count();
                 highlight.TimeFrame = new TimeSpan(lastCreated.Ticks - firstCreated.Ticks).TotalSeconds;
                 var ts = TimeSpan.FromSeconds(comments.Min(x => x.ContentOffsetSeconds));
                 var tsReduced = ts.TotalSeconds > SecondReduce ? TimeSpan.FromSeconds(ts.TotalSeconds - SecondReduce) : TimeSpan.FromSeconds(0);
