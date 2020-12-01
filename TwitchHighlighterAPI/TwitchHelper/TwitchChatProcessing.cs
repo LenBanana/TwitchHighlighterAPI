@@ -110,7 +110,7 @@ namespace TwitchHighlighterAPI.Twitch
                 double EmoteWeight = 0.25;
                 double maxCount = result.Max(x => (x.MessageCount + (x.HighlightMessages.Select(y => y.EmoteCount).Sum() * EmoteWeight)));
                 foreach (var highlight in result)
-                    highlight.Fitness = Math.Round((double)(highlight.MessageCount + (highlight.HighlightMessages.Select(x => x.EmoteCount).Sum() * EmoteWeight)) / (double)maxCount * 100.0, 2);
+                    highlight.Fitness = Math.Round((double)(highlight.MessageCount + (highlight.EmoteCount * EmoteWeight)) / (double)maxCount * 100.0, 2);
             }
             var orderedResult = result.OrderByDescending(x => x.MessageCount).ToList();
             return orderedResult;

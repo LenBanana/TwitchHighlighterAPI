@@ -18,6 +18,7 @@ namespace TwitchHighlighterAPI.Models
         public DateTime EndTime { get; set; }
         public double TimeFrame { get; set; }
         public int MessageCount { get; set; }
+        public int EmoteCount { get { return HighlightMessages.Select(x => x.EmoteCount).Sum(); } }
         public double Fitness { get; set; }
         public string TimeOffset { get; set; }
         public List<HighlightMessage> HighlightMessages { get; set; }
