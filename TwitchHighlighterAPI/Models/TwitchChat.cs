@@ -146,7 +146,7 @@ namespace TwitchHighlighterAPI.Models
         public string Id { get; set; }
 
         [JsonProperty("version")]
-        public long Version { get; set; }
+        public string Version { get; set; }
     }
 
 }
